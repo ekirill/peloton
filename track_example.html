@@ -313,12 +313,12 @@
         let dictanceFromStart = 0.0,
             oldCarPosition;
 
-        function rideCar(dictanceFromStart, oldCarPosition) {
+        function rideCar(dictanceFromStart) {
             oldCarPosition = track.drawCar(ctx_layer_2, dictanceFromStart, oldCarPosition);
 
             setTimeout(
                 function() {
-                    rideCar(dictanceFromStart + 1, oldCarPosition);
+                    rideCar(dictanceFromStart + 1);
                 },
                 30
             );
