@@ -12,8 +12,8 @@ class Track(models.Model):
 
 class TrackSector(models.Model):
     track = models.ForeignKey(Track, on_delete=models.CASCADE, related_name='sectors')
-    start = models.FloatField()
-    end = models.FloatField()
+    sector_order = models.IntegerField()
+    length = models.FloatField()
     curve_radius = models.FloatField(null=True)
     curve_direction = models.CharField(max_length=5, null=True)
 
