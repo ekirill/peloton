@@ -1,42 +1,76 @@
-from django.test import TestCase
-
+from peloton.testing.cases import BasicTestCase
 from track.const import DIRECTION, CURVE
 from track.models import TrackSector, Track
 
 
-class TrackSectorTestCase(TestCase):
-    def setUp(self):
-        super().setUp()
-        self.track = Track('test_track')
-
+class TrackSectorTestCase(BasicTestCase):
     def test_curve_category(self):
-        sector = TrackSector(track=self.track, start=0, end=100, curve_radius=None, curve_direction=DIRECTION.LEFT)
+        sector = TrackSector(track=self.track, length=100, curve_radius=None, curve_direction=DIRECTION.LEFT)
         self.assertEqual(0, sector.curve_category)
 
-        sector = TrackSector(track=self.track, start=0, end=100, curve_radius=100.0, curve_direction=DIRECTION.LEFT)
+        sector = TrackSector(track=self.track, length=100, curve_radius=100.0, curve_direction=DIRECTION.LEFT)
         self.assertEqual(1, sector.curve_category)
 
-        sector = TrackSector(track=self.track, start=0, end=100, curve_radius=56.0, curve_direction=DIRECTION.LEFT)
+        sector = TrackSector(track=self.track, length=100, curve_radius=56.0, curve_direction=DIRECTION.LEFT)
         self.assertEqual(4, sector.curve_category)
 
-        sector = TrackSector(track=self.track, start=0, end=100, curve_radius=33.0, curve_direction=DIRECTION.LEFT)
+        sector = TrackSector(track=self.track, length=100, curve_radius=33.0, curve_direction=DIRECTION.LEFT)
         self.assertEqual(5, sector.curve_category)
 
-        sector = TrackSector(track=self.track, start=0, end=100, curve_radius=14.0, curve_direction=DIRECTION.LEFT)
+        sector = TrackSector(track=self.track, length=100, curve_radius=14.0, curve_direction=DIRECTION.LEFT)
         self.assertEqual(CURVE.MAX_CATEGORY, sector.curve_category)
 
     def test_curve_speed(self):
-        sector = TrackSector(track=self.track, start=0, end=100, curve_radius=None, curve_direction=DIRECTION.LEFT)
-        self.assertEqual(160.0, sector.get_max_speed(160.0))
+        MAX_SPEED = 55.0
 
-        sector = TrackSector(track=self.track, start=0, end=100, curve_radius=100.0, curve_direction=DIRECTION.LEFT)
-        self.assertTrue(130 <= sector.get_max_speed(160.0) <= 135)
+        sector = TrackSector(track=self.track, length=100, curve_radius=None, curve_direction=DIRECTION.LEFT)
+        self.assertEqual(MAX_SPEED, sector.get_max_speed(MAX_SPEED))
 
-        sector = TrackSector(track=self.track, start=0, end=100, curve_radius=56.0, curve_direction=DIRECTION.LEFT)
-        self.assertTrue(75 <= sector.get_max_speed(160.0) <= 80)
+        sector = TrackSector(track=self.track, length=100, curve_radius=100.0, curve_direction=DIRECTION.LEFT)
+        self.assertTrue(43 <= sector.get_max_speed(MAX_SPEED) <= 46, sector.get_max_speed(MAX_SPEED))
 
-        sector = TrackSector(track=self.track, start=0, end=100, curve_radius=33.0, curve_direction=DIRECTION.LEFT)
-        self.assertTrue(50 <= sector.get_max_speed(160.0) <= 55)
+        sector = TrackSector(track=self.track, length=100, curve_radius=56.0, curve_direction=DIRECTION.LEFT)
+        self.assertTrue(25 <= sector.get_max_speed(MAX_SPEED) <= 27, sector.get_max_speed(MAX_SPEED))
 
-        sector = TrackSector(track=self.track, start=0, end=100, curve_radius=14.0, curve_direction=DIRECTION.LEFT)
-        self.assertTrue(15 <= sector.get_max_speed(160.0) <= 20)
+        sector = TrackSector(track=self.track, length=100, curve_radius=33.0, curve_direction=DIRECTION.LEFT)
+        self.assertTrue(17 <= sector.get_max_speed(MAX_SPEED) <= 19, sector.get_max_speed(MAX_SPEED))
+
+        sector = TrackSector(track=self.track, length=100, curve_radius=14.0, curve_direction=DIRECTION.LEFT)
+        self.assertTrue(5 <= sector.get_max_speed(MAX_SPEED) <= 7, sector.get_max_speed(MAX_SPEED))
+
+
+class TrackTestCase(BasicTestCase):
+    def test_get_sector(self):
+        track = Track.objects.create(name="test_track")
+        TrackSector.objects.create(
+            track=track, sector_order=0, length=33.2, curve_radius=None, curve_direction=DIRECTION.LEFT
+        )
+        TrackSector.objects.create(
+            track=track, sector_order=1, length=33.2, curve_radius=20.0, curve_direction=DIRECTION.LEFT
+        )
+        TrackSector.objects.create(
+            track=track, sector_order=2, length=12.1, curve_radius=None, curve_direction=DIRECTION.LEFT
+        )
+        TrackSector.objects.create(
+            track=track, sector_order=3, length=15.0, curve_radius=33, curve_direction=DIRECTION.RIGHT
+        )
+
+        track = Track.objects.get(pk=track.pk)
+
+        self.assertEqual(93.5, track.length)
+        self.assertEqual(track.get_sector(0.0)[0].sector_order, 0)
+        self.assertEqual(track.get_sector(0.1)[0].sector_order, 0)
+        self.assertEqual(track.get_sector(33.1)[0].sector_order, 0)
+        self.assertEqual(track.get_sector(33.2)[0].sector_order, 1)
+        self.assertEqual(track.get_sector(40.2)[0].sector_order, 1)
+        self.assertEqual(track.get_sector(67.0)[0].sector_order, 2)
+        self.assertEqual(track.get_sector(90.2)[0].sector_order, 3)
+        self.assertEqual(track.get_sector(93.4999999999)[0].sector_order, 3)
+
+        self.assertEqual(track.get_sector_by_order(0).sector_order, 0)
+        self.assertEqual(track.get_sector_by_order(2).sector_order, 2)
+
+        self.assertEqual(track.get_next_sector(0).sector_order, 1)
+        self.assertEqual(track.get_next_sector(1).sector_order, 2)
+        self.assertEqual(track.get_next_sector(2).sector_order, 3)
+        self.assertEqual(track.get_next_sector(3).sector_order, 0)
