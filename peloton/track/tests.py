@@ -40,7 +40,7 @@ class TrackSectorTestCase(BasicTestCase):
 
 
 class TrackTestCase(BasicTestCase):
-    def test_get_sector(self):
+    def setUp(self):
         track = Track.objects.create(name="test_track")
         TrackSector.objects.create(
             track=track, sector_order=0, length=33.2, curve_radius=None, curve_direction=DIRECTION.LEFT
@@ -55,22 +55,70 @@ class TrackTestCase(BasicTestCase):
             track=track, sector_order=3, length=15.0, curve_radius=33, curve_direction=DIRECTION.RIGHT
         )
 
-        track = Track.objects.get(pk=track.pk)
+        self.track = Track.objects.get(pk=track.pk)
 
-        self.assertEqual(93.5, track.length)
-        self.assertEqual(track.get_sector(0.0)[0].sector_order, 0)
-        self.assertEqual(track.get_sector(0.1)[0].sector_order, 0)
-        self.assertEqual(track.get_sector(33.1)[0].sector_order, 0)
-        self.assertEqual(track.get_sector(33.2)[0].sector_order, 1)
-        self.assertEqual(track.get_sector(40.2)[0].sector_order, 1)
-        self.assertEqual(track.get_sector(67.0)[0].sector_order, 2)
-        self.assertEqual(track.get_sector(90.2)[0].sector_order, 3)
-        self.assertEqual(track.get_sector(93.4999999999)[0].sector_order, 3)
+    def test_get_sector(self):
+        self.assertEqual(93.5, self.track.length)
+        self.assertEqual(self.track.get_sector_position(0.0).sector.sector_order, 0)
+        self.assertEqual(self.track.get_sector_position(0.1).sector.sector_order, 0)
+        self.assertEqual(self.track.get_sector_position(33.1).sector.sector_order, 0)
+        self.assertEqual(self.track.get_sector_position(33.2).sector.sector_order, 1)
+        self.assertEqual(self.track.get_sector_position(40.2).sector.sector_order, 1)
+        self.assertEqual(self.track.get_sector_position(67.0).sector.sector_order, 2)
+        self.assertEqual(self.track.get_sector_position(90.2).sector.sector_order, 3)
+        self.assertEqual(self.track.get_sector_position(93.4999999999).sector.sector_order, 3)
 
-        self.assertEqual(track.get_sector_by_order(0).sector_order, 0)
-        self.assertEqual(track.get_sector_by_order(2).sector_order, 2)
+        self.assertEqual(self.track.get_sector_by_order(0).sector_order, 0)
+        self.assertEqual(self.track.get_sector_by_order(2).sector_order, 2)
 
-        self.assertEqual(track.get_next_sector(0).sector_order, 1)
-        self.assertEqual(track.get_next_sector(1).sector_order, 2)
-        self.assertEqual(track.get_next_sector(2).sector_order, 3)
-        self.assertEqual(track.get_next_sector(3).sector_order, 0)
+        self.assertEqual(self.track.get_next_sector(0).sector_order, 1)
+        self.assertEqual(self.track.get_next_sector(1).sector_order, 2)
+        self.assertEqual(self.track.get_next_sector(2).sector_order, 3)
+        self.assertEqual(self.track.get_next_sector(3).sector_order, 0)
+
+    def test_get_sector_on_track(self):
+        self.assertEqual(0.0, self.track.get_distance_from_start(self.track.get_sector_position(0.0)))
+        self.assertEqual(0.1, self.track.get_distance_from_start(self.track.get_sector_position(0.1)))
+        self.assertEqual(33.1, self.track.get_distance_from_start(self.track.get_sector_position(33.1)))
+        self.assertEqual(90.2, self.track.get_distance_from_start(self.track.get_sector_position(90.2)))
+
+    def test_distance_between_sector_positions(self):
+        self.assertEqual(
+            0.0,
+            self.track.distance_between_sector_positions(
+                self.track.get_sector_position(0.0),
+                self.track.get_sector_position(0.0)
+            )
+        )
+
+        self.assertEqual(
+            0.1,
+            self.track.distance_between_sector_positions(
+                self.track.get_sector_position(0.0),
+                self.track.get_sector_position(0.1)
+            )
+        )
+
+        self.assertEqual(
+            33.1,
+            self.track.distance_between_sector_positions(
+                self.track.get_sector_position(0.0),
+                self.track.get_sector_position(33.1)
+            )
+        )
+
+        self.assertEqual(
+            12.0,
+            self.track.distance_between_sector_positions(
+                self.track.get_sector_position(21.1),
+                self.track.get_sector_position(33.1)
+            )
+        )
+
+        self.assertEqual(
+            65.6,
+            self.track.distance_between_sector_positions(
+                self.track.get_sector_position(33.0),
+                self.track.get_sector_position(5.1)
+            )
+        )

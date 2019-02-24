@@ -1,5 +1,5 @@
 import math
-from typing import Dict, Tuple
+from typing import Dict, Tuple, NamedTuple
 
 from django.db import models
 from django.utils.functional import cached_property
@@ -11,6 +11,7 @@ class Track(models.Model):
     name = models.CharField(max_length=512)
 
     _sectors_index: Dict[float, 'TrackSector'] = None
+    _sectors_at_track_index: Dict[int, float] = None
     _sectors_index_keys: tuple = None
     _length: float = None
 
@@ -27,6 +28,12 @@ class Track(models.Model):
         return self._sectors_index_keys
 
     @property
+    def sectors_at_track_index(self) -> Dict[int, float]:
+        if self._sectors_at_track_index is None:
+            self._prefetch_sectors()
+        return self._sectors_at_track_index
+
+    @property
     def length(self) -> float:
         if self._length is None:
             self._prefetch_sectors()
@@ -35,10 +42,12 @@ class Track(models.Model):
     def _prefetch_sectors(self):
         self._length = 0.0
         self._sectors_index = {}
+        self._sectors_at_track_index = {}
 
         order_id = 0
         for sector in self.sectors.all():
             self._sectors_index[self._length] = sector
+            self._sectors_at_track_index[sector.sector_order] = self._length
             if sector.sector_order != order_id:
                 raise RuntimeError(
                     f"Track is invalid, sector must have order_id {order_id}, "
@@ -55,7 +64,7 @@ class Track(models.Model):
 
         return self.sectors_index[self.sectors_index_keys[-1]]
 
-    def get_sector(self, distance_from_start: float) -> Tuple['TrackSector', float]:
+    def get_sector_position(self, distance_from_start: float) -> 'SectorPosition':
         sector = None
         distance_from_sector_start = 0.0
 
@@ -71,7 +80,26 @@ class Track(models.Model):
             sector_distance_from_start = self.sectors_index_keys[-1]
             distance_from_sector_start = lap_distance_from_start - sector_distance_from_start
 
-        return sector, distance_from_sector_start
+        return SectorPosition(sector, distance_from_sector_start)
+
+    def get_distance_from_start(self, sector_position: 'SectorPosition') -> float:
+        if sector_position.sector.track_id != self.pk:
+            raise ValueError('Current sector does not belong to this track')
+        if sector_position.sector.sector_order not in self.sectors_at_track_index:
+            raise ValueError(f'Can not find track with order `{sector_position.sector.sector_order}` at track')
+        sector_start_on_track = self.sectors_at_track_index[sector_position.sector.sector_order]
+        return sector_start_on_track + sector_position.distance_from_sector_start
+
+    def distance_between_sector_positions(self, pos1, pos2: 'SectorPosition') -> float:
+        """
+        Distance to ride from pos1 to pos2
+        """
+        dist_from_start_1 = self.get_distance_from_start(pos1)
+        dist_from_start_2 = self.get_distance_from_start(pos2)
+        if dist_from_start_2 >= dist_from_start_1:
+            return dist_from_start_2 - dist_from_start_1
+        else:
+            return self.length - dist_from_start_1 + dist_from_start_2
 
     def get_sector_by_order(self, order_id: int) -> 'TrackSector':
         if order_id >= len(self.sectors_index_keys):
@@ -88,6 +116,7 @@ class Track(models.Model):
             next_order_id = 0
 
         return self.get_sector_by_order(next_order_id)
+
 
 class TrackSector(models.Model):
     track = models.ForeignKey(Track, on_delete=models.CASCADE, related_name='sectors')
@@ -119,3 +148,8 @@ class TrackSector(models.Model):
 
     class Meta:
         ordering = ["sector_order"]
+
+
+class SectorPosition(NamedTuple):
+    sector: TrackSector
+    distance_from_sector_start: float
