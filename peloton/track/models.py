@@ -117,6 +117,9 @@ class Track(models.Model):
 
         return self.get_sector_by_order(next_order_id)
 
+    def __str__(self):
+        return f'Track "{self.name}" ({self.length}m)'
+
 
 class TrackSector(models.Model):
     track = models.ForeignKey(Track, on_delete=models.CASCADE, related_name='sectors')

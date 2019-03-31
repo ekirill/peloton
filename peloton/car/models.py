@@ -11,4 +11,4 @@ class Car(models.Model):
     min_acc = -9.8  # m/s
 
     def __str__(self):
-        return f"Car: {self.name}"
+        return f'Car "{self.name}"'

@@ -6,7 +6,7 @@ from django.utils.functional import cached_property
 from car.models import Car
 from track.models import Track, TrackSector, SectorPosition
 
-RACE_TIME_FRAME = 0.01
+RACE_FRAME_DURATION = 0.01
 
 
 @dataclass
@@ -19,8 +19,22 @@ class CarState:
     _current_sector_position: SectorPosition = None
     _distance_from_sector_start: float = None
 
+    @classmethod
+    def get_race_start_state(cls, car, track):
+        return cls(
+            car=car,
+            track=track,
+            speed=0.0,
+            acceleration=0.0,
+            distance_from_start=0.0,
+        )
+
     def _prefetch_current_sector(self):
         self._current_sector_position = self.track.get_sector_position(self.distance_from_start)
+
+    @property
+    def speed_kmh(self) -> float:
+        return self.speed * (60 * 60) / 1000
 
     @property
     def current_sector_position(self) -> SectorPosition:
@@ -108,14 +122,14 @@ def get_riding_length(speed, acceleration, time_sec: float) -> float:
 
 
 def get_frame_riding_length(speed, acceleration) -> float:
-    return get_riding_length(speed, acceleration, RACE_TIME_FRAME)
+    return get_riding_length(speed, acceleration, RACE_FRAME_DURATION)
 
 
 def evaluate_next_frame_state(current_state: CarState, new_acceleration: float) -> CarState:
     next_frame_state = CarState(
         track=current_state.track,
         car=current_state.car,
-        speed=current_state.speed + new_acceleration * RACE_TIME_FRAME,
+        speed=current_state.speed + new_acceleration * RACE_FRAME_DURATION,
         acceleration=new_acceleration,
         distance_from_start=current_state.distance_from_start + get_frame_riding_length(
             current_state.speed, new_acceleration
