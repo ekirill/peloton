@@ -1,0 +1,71 @@
+{% load static %}
+
+<html>
+    <head>
+        <title>Peloton</title>
+        <script src="{% static "js/race.js" %}"></script>
+    </head>
+
+    <body>
+        PELOTON
+        <div style="position: relative;">
+
+            <canvas id="track_layer_1"
+                    width=800 height=600
+                    style="position: absolute; left: 0; top: 0; z-index: 0; background-color: bisque"
+            ></canvas>
+
+            <canvas id="track_layer_2"
+                    width=800 height=600
+                    style="position: absolute; left: 0; top: 0; z-index: 1"
+            ></canvas>
+
+        </div>
+
+        <script>
+            const
+                ctx_layer_1 = document.getElementById("track_layer_1").getContext("2d"),
+                ctx_layer_2 = document.getElementById("track_layer_2").getContext("2d");
+            const
+                trackSectors = [
+                    {length: 150.0, curve_radius: null, curve_direction: null},
+                    {length: 15.0, curve_radius: 15.0, curve_direction: "right"},
+                    {length: 15.0, curve_radius: 15.0, curve_direction: "left"},
+                    {length: 25.0, curve_radius: 15.0, curve_direction: "right"},
+                    {length: 44.0, curve_radius: null, curve_direction: null},
+                    {length: 50.0, curve_radius: 45.0, curve_direction: "left"},
+                    {length: 20.0, curve_radius: null, curve_direction: null},
+                    {length: 100.0, curve_radius: 200.0, curve_direction: "right"},
+                    {length: 50.0, curve_radius: 50.0, curve_direction: "right"},
+                    {length: 70.0, curve_radius: 30.0, curve_direction: "right"},
+                    {length: 140.0, curve_radius: 150.0, curve_direction: "left"},
+                    {length: 200.0, curve_radius: null, curve_direction: null},
+                    {length: 30.0, curve_radius: 43.0, curve_direction: "left"},
+                    {length: 120.0, curve_radius: null, curve_direction: null},
+                    {length: 50.0, curve_radius: 23.0, curve_direction: "right"},
+                    {length: 120.0, curve_radius: null, curve_direction: null},
+                    {length: 185.0, curve_radius: 65.89, curve_direction: "right"},
+                    {length: 68.6, curve_radius: 28.1, curve_direction: "left"},
+                    {length: 14.5, curve_radius: 15.0, curve_direction: "right"},
+                ],
+                track = new Track(new TrackPosition(350, 200, 10.0), trackSectors);
+
+            track.draw(ctx_layer_1);
+
+            let dictanceFromStart = 0.0,
+                oldCarPosition;
+
+            function rideCar(dictanceFromStart) {
+                oldCarPosition = track.drawCar(ctx_layer_2, dictanceFromStart, oldCarPosition);
+
+                setTimeout(
+                    function() {
+                        rideCar(dictanceFromStart + 2);
+                    },
+                    10
+                );
+            }
+            {#rideCar(dictanceFromStart);#}
+        </script>
+    </body>
+</html>

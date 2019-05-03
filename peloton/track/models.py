@@ -4,7 +4,7 @@ from typing import Dict, Tuple, NamedTuple
 from django.db import models
 from django.utils.functional import cached_property
 
-from track.const import CURVE
+from track.const import CURVE, DIRECTION
 
 
 class Track(models.Model):
@@ -156,3 +156,37 @@ class TrackSector(models.Model):
 class SectorPosition(NamedTuple):
     sector: TrackSector
     distance_from_sector_start: float
+
+
+def get_default_track():
+    track, is_new = Track.objects.get_or_create(name='Track Default')
+
+    if not is_new:
+        return track
+
+    sectors = [
+        TrackSector(track=track, length=150.0, curve_radius=None, curve_direction=None),
+        TrackSector(track=track, length=15.0, curve_radius=15.0, curve_direction=DIRECTION.RIGHT),
+        TrackSector(track=track, length=15.0, curve_radius=15.0, curve_direction=DIRECTION.LEFT),
+        TrackSector(track=track, length=25.0, curve_radius=15.0, curve_direction=DIRECTION.RIGHT),
+        TrackSector(track=track, length=44.0, curve_radius=None, curve_direction=None),
+        TrackSector(track=track, length=50.0, curve_radius=45.0, curve_direction=DIRECTION.LEFT),
+        TrackSector(track=track, length=20.0, curve_radius=None, curve_direction=None),
+        TrackSector(track=track, length=100.0, curve_radius=200.0, curve_direction=DIRECTION.RIGHT),
+        TrackSector(track=track, length=50.0, curve_radius=50.0, curve_direction=DIRECTION.RIGHT),
+        TrackSector(track=track, length=70.0, curve_radius=30.0, curve_direction=DIRECTION.RIGHT),
+        TrackSector(track=track, length=140.0, curve_radius=150.0, curve_direction=DIRECTION.LEFT),
+        TrackSector(track=track, length=200.0, curve_radius=None, curve_direction=None),
+        TrackSector(track=track, length=30.0, curve_radius=43.0, curve_direction=DIRECTION.LEFT),
+        TrackSector(track=track, length=120.0, curve_radius=None, curve_direction=None),
+        TrackSector(track=track, length=50.0, curve_radius=23.0, curve_direction=DIRECTION.RIGHT),
+        TrackSector(track=track, length=120.0, curve_radius=None, curve_direction=None),
+        TrackSector(track=track, length=185.0, curve_radius=65.89, curve_direction=DIRECTION.RIGHT),
+        TrackSector(track=track, length=68.6, curve_radius=28.1, curve_direction=DIRECTION.LEFT),
+        TrackSector(track=track, length=14.5, curve_radius=15.0, curve_direction=DIRECTION.RIGHT),
+    ]
+    for idx, sector in enumerate(sectors):
+        sector.sector_order = idx
+    TrackSector.objects.bulk_create(sectors)
+
+    return track
