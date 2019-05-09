@@ -32,8 +32,8 @@ function translatePoint(p, degree, length) {
 }
 
 class Sector {
-    constructor(sector_id, startPosition, length, radius, direction, distanceFromStart) {
-        this.sector_id = sector_id;
+    constructor(sectorId, startPosition, length, radius, direction, distanceFromStart) {
+        this.sectorId = sectorId;
         this.startPosition = startPosition;
         this.length = length;
         this.radius = radius;
@@ -50,8 +50,7 @@ class Sector {
 
     setCurveData() {
         let
-            arcC, arcStartDegree, arcEndDegree, degreeN, turnDegree, isCCW,
-            endPoint, endDegree;
+            arcC, arcStartDegree, arcEndDegree, degreeN, turnDegree, endPoint, endDegree;
 
         degreeN = this.startPosition.degree % 360;
         turnDegree = (180 * this.length) / (Math.PI * this.radius);
@@ -169,38 +168,11 @@ class Sector {
         );
     }
 
-    getCarBounds(carPosition) {
-        const
-            carPoint = new Point(carPosition.x, carPosition.y),
-            carDegree = carPosition.degree,
-            carNose = translatePoint(carPoint, carDegree, 10),
-            carRight = translatePoint(carPoint, carDegree + 135, 10),
-            carLeft = translatePoint(carPoint, carDegree - 135, 10);
-
-        return {
-            nose: carNose,
-            right: carRight,
-            left: carLeft,
-        }
-    }
-
-    undrawCar(ctx, carPosition) {
-        const
-            carBounds = this.getCarBounds(carPosition),
-            minX = Math.min(carBounds.nose.x, carBounds.right.x, carBounds.left.x) - 1,
-            minY = Math.min(carBounds.nose.y, carBounds.right.y, carBounds.left.y) - 1,
-            maxX = Math.max(carBounds.nose.x, carBounds.right.x, carBounds.left.x) + 1,
-            maxY = Math.max(carBounds.nose.y, carBounds.right.y, carBounds.left.y) + 1;
-
-        ctx.clearRect(minX, minY, maxX, maxY);
-    }
-
-    drawCar(ctx, distanceFromStart, oldCarPosition) {
-        const length = distanceFromStart - this.distanceFromStart;
-        let carPoint, carDegree;
+    getPosition(sectorDistanceFromStart) {
+        let sectorPoint, sectorDegree;
 
         if (this.isCurve)  {
-            const turnDegree = (180 * length) / (Math.PI * this.radius);
+            const turnDegree = (180 * sectorDistanceFromStart) / (Math.PI * this.radius);
             let carArcDegree;
             if (this.direction === Directions.CW) {
                 carArcDegree = this.arcStartDegree + turnDegree;
@@ -211,40 +183,25 @@ class Sector {
             if (carArcDegree < 0) {
                 carArcDegree = 360 + carArcDegree;
             }
-            carPoint = translatePoint(this.arcCenter, carArcDegree, this.radius);
+            sectorPoint = translatePoint(this.arcCenter, carArcDegree, this.radius);
 
             if (this.direction === Directions.CW) {
-                carDegree = carArcDegree + 90;
+                sectorDegree = carArcDegree + 90;
             } else {
-                carDegree = carArcDegree - 90;
+                sectorDegree = carArcDegree - 90;
             }
-            carDegree = carDegree % 360;
-            if (carDegree < 0) {
-                carDegree = 360 + carDegree;
+            sectorDegree = sectorDegree % 360;
+            if (sectorDegree < 0) {
+                sectorDegree = 360 + sectorDegree;
             }
         } else {
-            carPoint = translatePoint(
-                this.startPosition, this.startPosition.degree, length
+            sectorPoint = translatePoint(
+                this.startPosition, this.startPosition.degree, sectorDistanceFromStart
             );
-            carDegree = this.startPosition.degree;
+            sectorDegree = this.startPosition.degree;
         }
 
-        const
-            carPosition = new TrackPosition(carPoint.x, carPoint.y, carDegree),
-            carBounds = this.getCarBounds(carPosition);
-
-        if (oldCarPosition) {
-            this.undrawCar(ctx, oldCarPosition);
-        }
-        ctx.fillStyle = "red";
-        ctx.beginPath();
-        ctx.moveTo(carBounds.nose.x, carBounds.nose.y);
-        ctx.lineTo(carBounds.right.x, carBounds.right.y);
-        ctx.lineTo(carBounds.left.x, carBounds.left.y);
-        ctx.closePath();
-        ctx.fill();
-
-        return carPosition;
+        return new TrackPosition(sectorPoint.x, sectorPoint.y, sectorDegree);
     }
 }
 
@@ -325,14 +282,80 @@ class Track {
         }
     }
 
-    drawCar(ctx, distanceFromStart, oldCarPosition) {
-        distanceFromStart = distanceFromStart % this.length;
-        let sector = this.getSector(distanceFromStart);
+    getPosition(distanceFromStart) {
+        const
+            circleDistanceFromStart = distanceFromStart % this.length,
+            sector = this.getSector(circleDistanceFromStart);
+
         if (!sector) {
+            console.log(
+                'Could not find sector for distance ' + distanceFromStart + ' at track ' + this.name
+            );
             return;
         }
 
-        return sector.drawCar(ctx, distanceFromStart, oldCarPosition);
+        const sectorDistanceFromStart = circleDistanceFromStart - sector.distanceFromStart;
+        return sector.getPosition(sectorDistanceFromStart);
+    }
+}
+
+class Car {
+    static getCarBounds(carPosition) {
+        const
+            carPoint = new Point(carPosition.x, carPosition.y),
+            carDegree = carPosition.degree,
+            carNose = translatePoint(carPoint, carDegree, 10),
+            carRight = translatePoint(carPoint, carDegree + 135, 10),
+            carLeft = translatePoint(carPoint, carDegree - 135, 10);
+
+        return {
+            nose: carNose,
+            right: carRight,
+            left: carLeft,
+        }
+    }
+
+    undrawCar(ctx, carPosition) {
+        const
+            carBounds = Car.getCarBounds(carPosition),
+            minX = Math.min(carBounds.nose.x, carBounds.right.x, carBounds.left.x) - 1,
+            minY = Math.min(carBounds.nose.y, carBounds.right.y, carBounds.left.y) - 1,
+            maxX = Math.max(carBounds.nose.x, carBounds.right.x, carBounds.left.x) + 1,
+            maxY = Math.max(carBounds.nose.y, carBounds.right.y, carBounds.left.y) + 1;
+
+        ctx.clearRect(minX, minY, maxX, maxY);
+    }
+
+    drawCar(ctx, carPosition) {
+        const carBounds = Car.getCarBounds(carPosition);
+
+        ctx.fillStyle = "red";
+        ctx.beginPath();
+        ctx.moveTo(carBounds.nose.x, carBounds.nose.y);
+        ctx.lineTo(carBounds.right.x, carBounds.right.y);
+        ctx.lineTo(carBounds.left.x, carBounds.left.y);
+        ctx.closePath();
+        ctx.fill();
+    }
+}
+
+class CarState {
+    constructor(track, car, distanceFromStart) {
+        this.track = track;
+        this.car = car;
+        this.distanceFromStart = distanceFromStart;
+        this.carPosition = track.getPosition(distanceFromStart);
+        this.oldCarPosition = undefined;
+    }
+
+    moveTo(distanceFromStart) {
+        this.distanceFromStart = distanceFromStart;
+        this.oldCarPosition = this.carPosition;
+        this.carPosition = this.track.getPosition(this.distanceFromStart);
+    }
+
+    move(distance) {
+        this.moveTo(this.distanceFromStart + 2);
     }
 }
 
@@ -341,22 +364,33 @@ class Race {
         this.track = track;
     }
 
+    redrawCar(ctx, carState) {
+        if (carState.oldCarPosition !== undefined) {
+            carState.car.undrawCar(ctx, carState.oldCarPosition);
+        }
+
+        carState.car.drawCar(ctx, carState.carPosition);
+    }
+
     run() {
-        let dictanceFromStart = 0.0,
-            oldCarPosition;
+        const
+            car = new Car(),
+            carState = new CarState(this.track, car, 0.0),
+            race = this;
 
-        const race = this;
+        function rideCar() {
+            race.redrawCar(ctx_layer_2, carState);
 
-        function rideCar(dictanceFromStart) {
-            oldCarPosition = race.track.drawCar(ctx_layer_2, dictanceFromStart, oldCarPosition);
+            carState.move(2.0);
 
             setTimeout(
                 function() {
-                    rideCar(dictanceFromStart + 2);
+                    rideCar();
                 },
-                10
+                100
             );
         }
-        rideCar(dictanceFromStart);
+
+        rideCar();
     }
 }
