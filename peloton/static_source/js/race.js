@@ -102,6 +102,54 @@ class Sector {
         this.endPosition = new TrackPosition(translatedP.x, translatedP.y, this.startPosition.degree);
     }
 
+    boundingBox() {
+        if (this.isCurve) {
+            // only endpoints or compass(0, 90, 180, 270) points of the arc may touch the bounding box
+            let maxX, maxY, minX, minY, angStart, angEnd;
+            maxX = Math.max(this.startPosition.x, this.endPosition.x);
+            maxY = Math.max(this.startPosition.y, this.endPosition.y);
+            minX = Math.min(this.startPosition.x, this.endPosition.x);
+            minY = Math.min(this.startPosition.y, this.endPosition.y);
+
+            angStart = this.arcStartDegree;
+            angEnd = this.arcEndDegree;
+            if (this.isCCW) {
+                angStart = this.arcEndDegree;
+                angEnd = this.arcStartDegree;
+            }
+
+            if (angEnd < angStart) {
+                angEnd = 360 + angEnd;
+            }
+
+            if ((angStart <= 0 && 0 <= angEnd) || (angStart <= 360 && 360 <= angEnd)) {
+                maxX = this.arcCenter.x + this.radius;
+            }
+            if ((angStart <= 90 && 90 <= angEnd) || (angStart <= 360 + 90 && 360 + 90 <= angEnd)) {
+                maxY = this.arcCenter.y + this.radius;
+            }
+            if ((angStart <= 180 && 180 <= angEnd) || (angStart <= 360 + 180 && 360 + 180 <= angEnd)) {
+                minX = this.arcCenter.x - this.radius;
+            }
+            if ((angStart <= 270 && 270 <= angEnd) || (angStart <= 360 + 270 && 360 + 270 <= angEnd)) {
+                minY = this.arcCenter.y - this.radius;
+            }
+
+            return [[minX, minY], [maxX, maxY]]
+        } else {
+            return [
+                [
+                    Math.min(this.startPosition.x, this.endPosition.x),
+                    Math.min(this.startPosition.y, this.endPosition.y)
+                ],
+                [
+                    Math.max(this.startPosition.x, this.endPosition.x),
+                    Math.max(this.startPosition.y, this.endPosition.y)
+                ]
+            ]
+        }
+    }
+
     draw(ctx) {
         if (this.isCurve)  {
             ctx.arc(
@@ -201,7 +249,9 @@ class Sector {
 }
 
 class Track {
-    constructor(startPosition, sectors) {
+    constructor(trackId, trackName, startPosition, sectors) {
+        this.trackId = trackId;
+        this.trackName = trackName;
         this.sectors = [];
         this.startPosition = startPosition;
         this.length = 0.0;
@@ -223,6 +273,25 @@ class Track {
         });
     }
 
+    boundingBox() {
+        let minX, minY, maxX, maxY, sectorBBox;
+        this.sectors.forEach((sector) => {
+            sectorBBox = sector.boundingBox();
+            if (minX === undefined) {
+                minX = sectorBBox[0][0];
+                minY = sectorBBox[0][1];
+                maxX = sectorBBox[1][0];
+                maxY = sectorBBox[1][1];
+            } else {
+                minX = Math.min(minX, sectorBBox[0][0]);
+                minY = Math.min(minY, sectorBBox[0][1]);
+                maxX = Math.max(maxX, sectorBBox[1][0]);
+                maxY = Math.max(maxY, sectorBBox[1][1]);
+            }
+        });
+        return [[minX, minY], [maxX, maxY]];
+    }
+
     draw(ctx) {
         ctx.beginPath();
         ctx.moveTo(this.startPosition.x, this.startPosition.y);
@@ -234,6 +303,15 @@ class Track {
         ctx.lineWidth = 3;
         ctx.strokeStyle = "blue";
         ctx.stroke();
+
+        const
+            trackBBox = this.boundingBox(),
+            nameX = trackBBox[0][0],
+            nameY = trackBBox[0][1] - 5;
+
+        ctx.font = "14px Arial";
+        ctx.fillStyle = "black";
+        ctx.fillText(this.trackName, nameX, nameY);
     }
 
     getSector(distanceFromStart) {

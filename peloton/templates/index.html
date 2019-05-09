@@ -1,6 +1,6 @@
 {% load static %}
 
-<html>
+<html lang="ru">
     <head>
         <title>Peloton</title>
         <script src="{% static "js/race.js" %}"></script>
@@ -48,7 +48,7 @@
                     {length: 68.6, curve_radius: 28.1, curve_direction: "left"},
                     {length: 14.5, curve_radius: 15.0, curve_direction: "right"},
                 ],
-                track = new Track(new TrackPosition(350, 200, 10.0), trackSectors);
+                track = new Track(0, 'TestTrack', new TrackPosition(350, 200, 10.0), trackSectors);
 
             track.draw(ctx_layer_1);
 
