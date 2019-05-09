@@ -335,3 +335,28 @@ class Track {
         return sector.drawCar(ctx, distanceFromStart, oldCarPosition);
     }
 }
+
+class Race {
+    constructor(track) {
+        this.track = track;
+    }
+
+    run() {
+        let dictanceFromStart = 0.0,
+            oldCarPosition;
+
+        const race = this;
+
+        function rideCar(dictanceFromStart) {
+            oldCarPosition = race.track.drawCar(ctx_layer_2, dictanceFromStart, oldCarPosition);
+
+            setTimeout(
+                function() {
+                    rideCar(dictanceFromStart + 2);
+                },
+                10
+            );
+        }
+        rideCar(dictanceFromStart);
+    }
+}
