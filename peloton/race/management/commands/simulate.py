@@ -2,42 +2,8 @@ from django.core.management import BaseCommand
 
 from car.models import Car
 from race.action import CarState, DecisionMaker, evaluate_next_frame_state, RACE_FRAME_DURATION
-from track.const import CURVE, DIRECTION
-from track.models import Track, TrackSector
-
-
-def get_track():
-    track, is_new = Track.objects.get_or_create(name='Track Brakogama')
-
-    if not is_new:
-        return track
-
-    sectors = [
-        TrackSector(track=track, length=150.0, curve_radius=None, curve_direction=None),
-        TrackSector(track=track, length=15.0, curve_radius=15.0, curve_direction=DIRECTION.RIGHT),
-        TrackSector(track=track, length=15.0, curve_radius=15.0, curve_direction=DIRECTION.LEFT),
-        TrackSector(track=track, length=25.0, curve_radius=15.0, curve_direction=DIRECTION.RIGHT),
-        TrackSector(track=track, length=44.0, curve_radius=None, curve_direction=None),
-        TrackSector(track=track, length=50.0, curve_radius=45.0, curve_direction=DIRECTION.LEFT),
-        TrackSector(track=track, length=20.0, curve_radius=None, curve_direction=None),
-        TrackSector(track=track, length=100.0, curve_radius=200.0, curve_direction=DIRECTION.RIGHT),
-        TrackSector(track=track, length=50.0, curve_radius=50.0, curve_direction=DIRECTION.RIGHT),
-        TrackSector(track=track, length=70.0, curve_radius=30.0, curve_direction=DIRECTION.RIGHT),
-        TrackSector(track=track, length=140.0, curve_radius=150.0, curve_direction=DIRECTION.LEFT),
-        TrackSector(track=track, length=200.0, curve_radius=None, curve_direction=None),
-        TrackSector(track=track, length=30.0, curve_radius=43.0, curve_direction=DIRECTION.LEFT),
-        TrackSector(track=track, length=120.0, curve_radius=None, curve_direction=None),
-        TrackSector(track=track, length=50.0, curve_radius=23.0, curve_direction=DIRECTION.RIGHT),
-        TrackSector(track=track, length=120.0, curve_radius=None, curve_direction=None),
-        TrackSector(track=track, length=185.0, curve_radius=65.89, curve_direction=DIRECTION.RIGHT),
-        TrackSector(track=track, length=68.6, curve_radius=28.1, curve_direction=DIRECTION.LEFT),
-        TrackSector(track=track, length=14.5, curve_radius=15.0, curve_direction=DIRECTION.RIGHT),
-    ]
-    for idx, sector in enumerate(sectors):
-        sector.sector_order = idx
-    TrackSector.objects.bulk_create(sectors)
-
-    return track
+from race.models import Race, RaceLog, RaceFrame
+from track.models import get_default_track
 
 
 def get_car():
@@ -47,8 +13,11 @@ def get_car():
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        track = get_track()
+        track = get_default_track()
         car = get_car()
+        race, _ = Race.objects.get_or_create(title="Test race")
+        RaceLog.objects.filter(race_frame__race=race).delete()
+        RaceFrame.objects.filter(race=race).delete()
 
         car_state = CarState(car=car, track=track)
 
@@ -57,6 +26,8 @@ class Command(BaseCommand):
         frame = 0
 
         while car_state.distance_from_start < race_distance:
+            frame += 1
+
             new_acceleration = car_state.acceleration
 
             if DecisionMaker.need_acceleate(car_state):
@@ -65,7 +36,18 @@ class Command(BaseCommand):
                 new_acceleration = car.min_acc
 
             race_time = frame * RACE_FRAME_DURATION
-            if race_time % 1.00 == 0:
+            if frame % 10 == 0:
+                race_frame = RaceFrame.objects.create(
+                    race=race,
+                    race_time=race_time,
+                )
+                RaceLog.objects.create(
+                    race_frame=race_frame,
+                    car=car,
+                    distance_from_start=car_state.distance_from_start,
+                    acceleration=car_state.acceleration,
+                    speed=car_state.speed,
+                )
                 print(
                     f"TIME: {race_time:06.02f}s\t"
                     f"DISTANCE: {car_state.distance_from_start:07.2f}m\t"
@@ -73,5 +55,3 @@ class Command(BaseCommand):
                 )
 
             car_state = evaluate_next_frame_state(car_state, new_acceleration)
-
-            frame += 1
