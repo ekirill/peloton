@@ -1,0 +1,3 @@
+[packages]
+django = "==2.1.4"
+djangorestframework = "==3.9.3"
